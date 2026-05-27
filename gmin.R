@@ -129,36 +129,38 @@ g_cooling_effect = ggplot(results_45, aes(x=reorder(Species, cooling_effect_degc
   geom_bar(stat='identity') +
   coord_flip() +
   theme_bw() +
-  ylab('Cooling effect (°C)') +
+  ylab('Cooling effect, CE (°C)') +
   xlab('Species') +
-  geom_hline(yintercept = 0, color='black')
+  geom_hline(yintercept = 0, color='black') +
+  scale_fill_brewer(palette='Set1')
 ggsave(g_cooling_effect,file='outputs/g_cooling_effect.pdf',width=7,height=7)
 
 g_delta_t = ggplot(results_45, aes(x=reorder(Species, delta_t_degc),y=delta_t_degc,fill=Dataset)) +
   geom_bar(stat='identity') +
   coord_flip() +
   theme_bw() +
-  ylab('∆T (°C)') +
-  xlab('')
+  ylab('Leaf-air temperature difference, ∆T (°C)') +
+  xlab('') +
+  scale_fill_brewer(palette='Set1')
 ggsave(g_delta_t,file='outputs/g_delta_t.pdf',width=7,height=7)
 
 
 
-g_pairs = ggplot(results_45, aes(x=delta_t_degc, y=cooling_effect_degc)) + 
-  geom_point(color='black') +
-  xlim(-1,10.5) + ylim(-2,0) +
+g_pairs = ggplot(results_45, aes(x=delta_t_degc, y=cooling_effect_degc,color=Dataset)) + 
+  geom_point() +
   geom_hline(yintercept = 0,color='gray') +
   geom_vline(xintercept = 0,color='gray') +
   theme_bw() +
-  xlab('∆T (°C)') +
-  ylab('Cooling effect (°C)') +
-  stat_smooth(method='lm',se=FALSE)
+  xlab('Leaf-air temperature difference, ∆T (°C)') +
+  ylab('Cooling effect, CE (°C)') +
+  stat_smooth(method='lm',se=FALSE,data=results_45,aes(x=delta_t_degc, y=cooling_effect_degc),inherit.aes = FALSE,color='black') +
+  scale_color_brewer(palette='Set1')
 ggsave(g_pairs, file='outputs/g_pairs.pdf', width=7,height=7)
 
 
-g_fig1 = ggarrange(g_cooling_effect, g_delta_t, g_pairs, labels='AUTO',nrow=2,ncol=2)
-ggsave(g_fig1, file='outputs/g_fig1.pdf',width=8,height=8)
-ggsave(g_fig1, file='outputs/g_fig1.png',width=8,height=8)
+g_fig1 = ggarrange(g_cooling_effect, g_delta_t, g_pairs, labels='AUTO',nrow=3,ncol=1, common.legend = TRUE,legend='bottom')
+ggsave(g_fig1, file='outputs/g_fig1.pdf',width=4.5,height=11)
+ggsave(g_fig1, file='outputs/g_fig1.png',width=4.5,height=11)
 
 
 results_45$cooling_effect_degc %>% min
