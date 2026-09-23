@@ -135,7 +135,7 @@ results_rh_high = do.call('rbind',lapply(species_list_combined, process_species,
   left_join(data_combined %>% select(Species, Dataset) %>% unique, by='Species') # add in dataset info
 
 
-g_cooling_effect = ggplot(results_base, aes(x=reorder(Species, cooling_effect_degc),y=cooling_effect_degc,shape=Dataset,color=Tair_degC)) +
+g_cooling_effect = ggplot(results_base, aes(x=Species,y=cooling_effect_degc,shape=Dataset,color=Tair_degC)) +
   geom_point() +
   coord_flip() +
   theme_bw() +
@@ -146,7 +146,7 @@ g_cooling_effect = ggplot(results_base, aes(x=reorder(Species, cooling_effect_de
   scale_color_viridis_c(option='C',end = 0.8,limits=c(20,50),name=expression(paste('T'['air'], ' (°C)')))
 ggsave(g_cooling_effect,file='outputs/g_cooling_effect.pdf',width=7,height=7)
 
-g_delta_t = ggplot(results_base, aes(x=reorder(Species, delta_t_degc),y=delta_t_degc,shape=Dataset,color=Tair_degC)) +
+g_delta_t = ggplot(results_base, aes(x=Species,y=delta_t_degc,shape=Dataset,color=Tair_degC)) +
   geom_point() +
   coord_flip() +
   theme_bw() +
@@ -251,8 +251,13 @@ g_leafsize = ggplot(results_base, aes(x=width_cm, y=cooling_effect_degc, color=T
   ylab('Cooling effect, CE (°C)') +
   xlab('Leaf width (cm)') +
   geom_smooth(method='lm',inherit.aes = FALSE,aes(x=width_cm, y=cooling_effect_degc))
+
+lm(cooling_effect_degc ~ width_cm, data=results_base) %>% summary
+
+
+
+
 ggsave(g_leafsize, file='outputs/g_leafsize.pdf', width=6,height=6)
 ggsave(g_leafsize, file='outputs/g_leafsize.png', width=6,height=6)
 
 
-lm(cooling_effect_degc ~ width_cm, data=results_base) %>% summary
