@@ -3,6 +3,7 @@ library(readxl)
 library(ggplot2)
 library(dplyr)
 library(ggpubr)
+library(tidyr)
 
 # make output dir
 if (!file.exists('outputs'))
@@ -40,22 +41,6 @@ ggplot(data_combined, aes(x=Tair_degC,y=Gmin_mmol)) +
   facet_wrap(~Species+Dataset) +
   geom_point()
 
-
-# coef_table_combined = data_combined %>%
-#   group_by(Species) %>%
-#   #filter(Tair_degC > 30) %>%
-#   do(data.frame(t(coef(lm(Gmin_mmol ~ Tair_degC + I(Tair_degC^2), data = .))))) %>%
-#   rename(intercept=2,slope1=3, slope2=4)
-# 
-# # check fits
-# pdf(file='outputs/g_gmin_fits.pdf')
-# by(data_combined, data_combined$Species, function(x) {
-#   plot(Gmin_mmol~Tair_degC,data=x,main=x$Species[1])
-#   xv=20:50
-#   coef_table_combined_this = coef_table_combined %>% filter(Species==x$Species[1])
-#   lines(xv, coef_table_combined_this$intercept + coef_table_combined_this$slope1*xv+coef_table_combined_this$slope2*xv^2,col='red')
-#   }) 
-# dev.off()
 
 
 process_species <- function(species_this, wind_speed_m_s, relative_humidity)
@@ -111,6 +96,8 @@ process_species <- function(species_this, wind_speed_m_s, relative_humidity)
   return(data.frame(Species=species_this,
                     wind_speed_m_s = wind_speed_m_s,
                     Tair_degC = Tair_this,
+                    Tleaf_with_gmin_degC = params %>% filter(Tair==Tair_this) %>% pull(tleaf_with_gmin),
+                    Tleaf_without_gmin_degC = params %>% filter(Tair==Tair_this) %>% pull(tleaf_without_gmin),
                     gmin_mmol = gmin_mmol_this,
                     relative_humidity = relative_humidity,
                     width_cm = width_cm_this,
@@ -135,7 +122,7 @@ results_rh_high = do.call('rbind',lapply(species_list_combined, process_species,
   left_join(data_combined %>% select(Species, Dataset) %>% unique, by='Species') # add in dataset info
 
 
-g_cooling_effect = ggplot(results_base, aes(x=Species,y=cooling_effect_degc,shape=Dataset,color=Tair_degC)) +
+g_cooling_effect = ggplot(results_base, aes(x=reorder(Species,cooling_effect_degc, median),y=cooling_effect_degc,shape=Dataset,color=Tair_degC)) +
   geom_point() +
   coord_flip() +
   theme_bw() +
@@ -143,10 +130,10 @@ g_cooling_effect = ggplot(results_base, aes(x=Species,y=cooling_effect_degc,shap
   xlab('Species') +
   geom_hline(yintercept = 0, color='black') +
   theme(axis.text.y=element_text(face='italic')) +
-  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,50),name=expression(paste('T'['air'], ' (°C)')))
+  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,52),name=expression(paste('T'['air'], ' (°C)')))
 ggsave(g_cooling_effect,file='outputs/g_cooling_effect.pdf',width=7,height=7)
 
-g_delta_t = ggplot(results_base, aes(x=Species,y=delta_t_degc,shape=Dataset,color=Tair_degC)) +
+g_delta_t = ggplot(results_base, aes(x=reorder(Species,cooling_effect_degc, median),y=delta_t_degc,shape=Dataset,color=Tair_degC)) +
   geom_point() +
   coord_flip() +
   theme_bw() +
@@ -154,7 +141,8 @@ g_delta_t = ggplot(results_base, aes(x=Species,y=delta_t_degc,shape=Dataset,colo
   xlab('') +
   geom_hline(yintercept = 0, color='black') +
   theme(axis.text.y=element_text(face='italic')) +
-  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,50),name=expression(paste('T'['air'], ' (°C)')))
+  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,52),name=expression(paste('T'['air'], ' (°C)'))) +
+  scale_y_continuous(breaks=c(0,5,10))
 ggsave(g_delta_t,file='outputs/g_delta_t.pdf',width=7,height=7)
 
 
@@ -169,15 +157,15 @@ g_pairs = ggplot(results_high_temp, aes(x=delta_t_degc, y=cooling_effect_degc,co
   xlab(expression(paste('Leaf-air temperature difference, ', Delta, 'T (°C)'))) +
   ylab('Cooling effect, CE (°C)') +
   stat_smooth(method='lm',se=TRUE,data=results_high_temp,aes(x=delta_t_degc, y=cooling_effect_degc),inherit.aes = FALSE,color='blue2') +
-  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,50),name=expression(paste('T'['air'], ' (°C)'))) +
+  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,52),name=expression(paste('T'['air'], ' (°C)'))) +
   annotate('text', x=0.5,y=-1.75, label=expression(paste('for T'['air'] >= '35°C')),hjust=0,parse=TRUE)
 ggsave(g_pairs, file='outputs/g_pairs.pdf', width=7,height=7)
 ggsave(g_pairs, file='outputs/g_pairs.png', width=7,height=7)
 
 
 g_fig1 = ggarrange(g_cooling_effect, g_delta_t, labels='AUTO',nrow=2,ncol=1, common.legend = TRUE,legend='bottom')
-ggsave(g_fig1, file='outputs/g_fig1.pdf',width=4.5,height=8)
-ggsave(g_fig1, file='outputs/g_fig1.png',width=4.5,height=8)
+ggsave(g_fig1, file='outputs/g_fig1.pdf',width=5,height=9)
+ggsave(g_fig1, file='outputs/g_fig1.png',width=5,height=9)
 
 
 
@@ -203,15 +191,15 @@ results_rh = rbind(results_base, results_rh_low, results_rh_high)
 g_sensitivity_cooling_effect_wind = ggplot(results_wind, aes(x=Tair_degC, y=cooling_effect_degc)) +
   geom_point(alpha=0.5) + 
   theme_bw() +
-  facet_wrap(~wind_speed_m_s,labeller=label_both) +
+  facet_wrap(~wind_speed_m_s,labeller=labeller(wind_speed_m_s=c(`0.5`='u=0.5',`1`='u=1',`2`='u=2'))) +
   xlab(expression(paste('T'['air'], ' (°C)'))) +
   ylab('Cooling effect, CE (°C)')
 
 
-g_sensitivity_cooling_effect_rh = ggplot(results_rh, aes(x=Tair_degC, y=cooling_effect_degc)) +
+g_sensitivity_cooling_effect_rh = ggplot(results_rh %>% mutate(rh_pct = relative_humidity*100), aes(x=Tair_degC, y=cooling_effect_degc)) +
   geom_point(alpha=0.5) + 
   theme_bw() +
-  facet_wrap(~relative_humidity,labeller=label_both) +
+  facet_wrap(~rh_pct,labeller=labeller(rh_pct=c(`25`='RH=25%',`50`='RH=50%',`75`='RH=75%'))) +
   xlab(expression(paste('T'['air'], ' (°C)'))) +
   ylab('Cooling effect, CE (°C)')
 
@@ -222,15 +210,15 @@ ggarrange(g_sensitivity_cooling_effect_wind, g_sensitivity_cooling_effect_rh, al
 g_sensitivity_delta_t_wind = ggplot(results_wind, aes(x=Tair_degC, y=delta_t_degc)) +
   geom_point(alpha=0.5) + 
   theme_bw() +
-  facet_wrap(~wind_speed_m_s,labeller=label_both) +
+  facet_wrap(~wind_speed_m_s,labeller=labeller(wind_speed_m_s=c(`0.5`='u=0.5',`1`='u=1',`2`='u=2'))) +
   xlab(expression(paste('T'['air'], ' (°C)'))) +
   ylab(expression(paste('Leaf-air temperature difference, ', Delta, 'T (°C)')))
 
 
-g_sensitivity_delta_t_rh = ggplot(results_rh, aes(x=Tair_degC, y=delta_t_degc)) +
+g_sensitivity_delta_t_rh = ggplot(results_rh %>% mutate(rh_pct = relative_humidity*100), aes(x=Tair_degC, y=delta_t_degc)) +
   geom_point(alpha=0.5) + 
   theme_bw() +
-  facet_wrap(~relative_humidity,labeller=label_both) +
+  facet_wrap(~rh_pct,labeller=labeller(rh_pct=c(`25`='RH=25%',`50`='RH=50%',`75`='RH=75%'))) +
   xlab(expression(paste('T'['air'], ' (°C)'))) +
   ylab(expression(paste('Leaf-air temperature difference, ', Delta, 'T (°C)')))
 
@@ -246,7 +234,7 @@ ggsave(g_sensitivity, file='outputs/g_sensitivity.png',width=10,height=8)
 g_leafsize = ggplot(results_base, aes(x=width_cm, y=cooling_effect_degc, color=Tair_degC,shape=Dataset)) +
   geom_point() + 
   theme_bw() +
-  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,50),name=expression(paste('T'['air'], ' (°C)'))) +
+  scale_color_viridis_c(option='C',end = 0.8,limits=c(20,52),name=expression(paste('T'['air'], ' (°C)'))) +
   scale_x_sqrt() +
   ylab('Cooling effect, CE (°C)') +
   xlab('Leaf width (cm)') +
@@ -261,3 +249,37 @@ ggsave(g_leafsize, file='outputs/g_leafsize.pdf', width=6,height=6)
 ggsave(g_leafsize, file='outputs/g_leafsize.png', width=6,height=6)
 
 
+
+# examine rationale behind sensitivity trends
+
+results_wind_long = results_wind %>% 
+  pivot_longer(contains('Tleaf')) %>%
+  filter(Species=='Calophyllum longifolium')
+
+results_rh_long = results_rh %>% 
+  pivot_longer(contains('Tleaf')) %>%
+  filter(Species=='Calophyllum longifolium')
+
+# additional sensitivity test
+g_wind_example = ggplot(results_wind_long, aes(x=Tair_degC, y=value,color=name)) +
+  geom_point() + 
+  theme_bw() +
+  facet_wrap(~wind_speed_m_s,labeller=labeller(wind_speed_m_s=c(`0.5`='u=0.5',`1`='u=1',`2`='u=2'))) +
+  ggtitle(results_wind_long$Species[1]) +
+  ylab(expression(paste('T'['leaf'], ' (°C)'))) +
+  xlab(expression(paste('T'['air'], ' (°C)'))) +
+  scale_color_manual(values=c('blue','red'),name=expression(paste('g'['min'], ' value')),labels=c('>0','=0')) 
+
+g_rh_example = ggplot(results_rh_long %>% mutate(rh_pct = relative_humidity*100), aes(x=Tair_degC, y=value,color=name)) +
+  geom_point() + 
+  theme_bw() +
+  facet_wrap(~rh_pct,labeller=labeller(rh_pct=c(`25`='RH=25%',`50`='RH=50%',`75`='RH=75%'))) +
+  xlab(expression(paste('T'['air'], ' (°C)'))) +
+  ylab(expression(paste('T'['leaf'], ' (°C)'))) +
+  scale_color_manual(values=c('blue','red'),name=expression(paste('g'['min'], ' value')),labels=c('>0','=0'))
+
+g_example = ggarrange(g_wind_example, g_rh_example, common.legend = TRUE, align='hv', nrow=2, legend='bottom') +
+  ggtitle(results_wind_long$Species[1])
+
+ggsave(g_example, file='outputs/g_example.pdf', width=7,height=9)
+ggsave(g_example, file='outputs/g_example.png', width=7,height=9)
